@@ -1,9 +1,10 @@
 #!/usr/bin/env python
+from os import path
 import xml.etree.ElementTree as ET
 
 class ObjectTracker:
-    def __init__(self, tree_file = ""):
-        if not tree_file == "":
+    def __init__(self, tree_file = "obj_tree.xml"):
+        if path.exists(tree_file):
             self.xml_tree = ET.parse(tree_file)
         else:
             self.xml_tree = ET.Element('top')
