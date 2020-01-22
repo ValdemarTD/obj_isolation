@@ -11,11 +11,11 @@ class ObjectTracker:
                 cmd = "mv " + str(tree_file) + " " + str(tree_file) + ".old"
                 if self.debug:
                     print "Clearing tree. Command string is: " + cmd + "\n\n"
-                subprocess.call(cmd)
+                subprocess.call(cmd, shell=True)
                 elem = ET.Element('top')
                 self.xml_tree = ET.ElementTree(element=elem)
             else:
-                self.xml_tree = ET.ElementTree.parse(tree_file)
+                self.xml_tree = ET.ElementTree(file=tree_file)
         else:
             elem = ET.Element('top')
             self.xml_tree = ET.ElementTree(element=elem)
