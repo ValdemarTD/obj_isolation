@@ -8,19 +8,23 @@ import cv2 as cv
 from shapely.geometry import *
 
 class DrawBoxes:
-    def __init__(self, class_file, weights_file, net_config_file, target=cv.dnn.DNN_TARGET_CPU, backend=cv.dnn.DNN_BACKEND_OPENCV, debug_mode=False):
+    def __init__(self, class_file, weights_file, net_config_file, target=cv.dnn.DNN_TARGET_CPU, backend=cv.dnn.DNN_BACKEND_OPENCV, debug_mode=False, thresh=0.5, nms_thresh=0.4):
 #        self.processed_image_pub = rp.Publisher("processed_image", Image, queue_size=10)
 #        self.update_image = False
         #Bool to set whether debug outputs are on
         self.debug_mode = debug_mode
+        self.cv2_image = None
+
 
         self.bridge = CvBridge()
         self.last_image = None
 
 
         #Initialize variables for Darknet processing
-        self.thresh = 0.5
-        self.nms_thresh = 0.4
+        self.thresh = thresh
+        self.nms_thresh = nms_thresh
+
+        
 
         #Initializes classification list
         self.classes = None
@@ -41,12 +45,13 @@ class DrawBoxes:
         w = int(image_in.width) - int(image_in.width) % 32
         h = int(image_in.height) - int(image_in.height) % 32
         side = min([w,h])
-        cv2_image = self.bridge.imgmsg_to_cv2(image_in, image_in.encoding) #Going off of tutorial
-                                                                           #at http://wiki.ros.org/cv_bridge/Tutorials/ConvertingBetweenROSImagesAndOpenCVImagesPython
-        cv2_image = cv2_image[0:side, 0:side]
-        outs = self.darknet_process(cv2_image, w, h)
-        boxes = self.postprocess(outs, center_check, w, h)
-        self.last_image = cv.UMat(np.array(outs), dtype=np.float32)
+        self.cv2_image = self.bridge.imgmsg_to_cv2(image_in, image_in.encoding) #Going off of tutorial
+                                                                                #at http://wiki.ros.org/cv_bridge/Tutorials/ConvertingBetweenROSImagesAndOpenCVImagesPython
+        self.cv2_image = self.cv2_image[(int(image_in.width)-w)/2:int(image_in.width) - (int(image_in.width)-w)/2, (int(image_in.height)-h)/2:int(image_in.height) - (int(image_in.height)-h)/2]
+        outs, new_w, new_h = self.darknet_process(self.cv2_image, w, h)
+        boxes = self.postprocess(outs, center_check, new_w, new_h)
+#        self.last_image = cv.UMat(np.array(outs), dtype=np.float32)
+        self.last_image = outs[0]
         return outs, boxes
 
     #Function to run raw image through Darknet neural network object. Intend to default to using YOLOv3 with COCO classes
@@ -54,21 +59,21 @@ class DrawBoxes:
     #for use with single images instead of video streams. Separating postprocessing into self.id_object function
     def darknet_process(self, image_in, w, h):
         #Convert image to blob format and set as input for our net
-        blob = cv.dnn.blobFromImage(image_in, 1/255, (w, h), [0,0,0], 1, crop=False)
-#        blobb = blob.reshape(blob.shape[2] * blob.shape[1] , blob.shape[3], 1)
+        blob = cv.dnn.blobFromImage(image_in, 1, (w, h), [0,0,0], 1, crop=False)
+        blobb = blob.reshape(blob.shape[2] * blob.shape[1] , blob.shape[3], 1)
 
         if self.debug_mode:
-            print "Original image displaying\n\n"
+#            print "Original image displaying\n\n"
 #            cv.imshow('Original', image_in)
 #            cv.waitKey(15000)
 #            print "Key pressed. Continuing.\n\n"
 #            cv.destroyAllWindows()
-#            print "Length of blob given to Darknet: " + str(len(blob)) + "\n\n"
-#            print "Blob shape: " + str(blob.shape) + "\n\n"
-#            print "Blob given to Darknet: " + str(blob) + "\n\n"
+            print "Length of blob given to Darknet: " + str(len(blob)) + "\n\n"
+            print "Blob shape: " + str(blob.shape) + "\n\n"
+            print "Blob given to Darknet: " + str(blob) + "\n\n"
 #            print "Displaying blob then waiting...\n\n"
 #            blobb = blob.reshape(blob.shape[2] * blob.shape[1] , blob.shape[3], 1)
-#            print "Blob reshaped to:" + str(blobb.shape) + "\n\n"
+            print "Blob reshaped to:" + str(blobb.shape) + "\n\n"
 #            cv.imshow('Blob',blobb)
 #            cv.waitKey(10000)
 #            print "Key pressed. Continuing.\n\n"
@@ -88,8 +93,15 @@ class DrawBoxes:
             print "Type of darknet output: " + str(type(out)) + "\n\n"
             print "Type of darknet list items: " + str(type(out[0])) + "\n\n"
             print "Type of numpy array items in darknet list: " + str(np.array(out).dtype) + "\n\n"
+            print "Length of darknet items: "
+            for item in out:
+                print str(len(item)) + " "
+                #for i in item:
+                #    print str(len(i)) + " "
+                #print "\n"
+            print "\n\n"
 
-        return out
+        return out, blobb.shape[0], blobb.shape[1]
 
 
     #Get the names of the output layers
@@ -174,20 +186,20 @@ class DrawBoxes:
     #Modified from tutorial at https://www.learnopencv.com/deep-learning-based-object-detection-using-yolov3-with-opencv-python-c/
     def draw_pred(self, classId, conf, left, top, right, bottom):
         #Draw a bounding box.
-        cv.rectangle(frame, (left, top), (right, bottom), (0, 0, 255))
+        cv.rectangle(self.cv2_image, (left, top), (right, bottom), (0, 0, 255))
 
         #Make label for confidence
         label = '%.2f' % conf
 
         #Get the label for the class name and its confidence
-        if classes:
-            assert(classId < len(classes))
-            label = '%s:%s' % (classes[classId], label)
+        if self.classes:
+            assert(classId < len(self.classes))
+            label = '%s:%s' % (self.classes[classId], label)
 
         #Display the label at the top of the bounding box
         labelSize, baseLine = cv.getTextSize(label, cv.FONT_HERSHEY_SIMPLEX, 0.5, 1)
         top = max(top, labelSize[1])
-        cv.putText(frame, label, (left, top), cv.FONT_HERSHEY_SIMPLEX, 0.5, (255,255,255))
+        cv.putText(self.cv2_image, label, (left, top), cv.FONT_HERSHEY_SIMPLEX, 0.5, (255,255,255))
 
     #Simple function to make a window with the last image processed
     def show_image(self):

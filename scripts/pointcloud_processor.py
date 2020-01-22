@@ -4,11 +4,11 @@ from shapely.geometry import *
 #Class definition for a class that processes a previously filtered pointcloud
 #to isolate individual objects.
 class PointcloudProcessor:
-    def __init__(self):
+    def __init__(self, max_separation=0.15):
         self.obj_array = []
         self.point_array = []
         self.centroid_array = []
-        self.max_separation = 0.15
+        self.max_separation = max_separation
 
     #Get and set functions for our object array which should be filled with
     #Shapely Geometry Polygon objects
@@ -31,7 +31,7 @@ class PointcloudProcessor:
     def fill_points_array(self, new_arr):
         self.point_array = []
         for new_point in new_arr:
-            self.point_array.append([new_point[0], new_point[1]])
+            self.point_array.append([new_point[0], new_point[1], new_point[2]])
 
 
     #Checks if the distance between two points is within an acceptable
@@ -49,12 +49,12 @@ class PointcloudProcessor:
         for i in range(len(self.point_array) - 1):
             #Checks if we're looking at the first point in the array, which
             #should always be added
-            if i = 0:
+            if i == 0:
                 new_obj_points.append(self.point_array[i])
 
             #Checks if the next point in within our pre-set maximum
             #allowed separation
-            if dist_okay(self.point_array[i], self.point_array[i + 1]):
+            if self.dist_okay(self.point_array[i], self.point_array[i + 1]):
                 new_obj_points.append(self.point_array[i + 1])
 
             #If the next point is not within our max distance, we consider it to

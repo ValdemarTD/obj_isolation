@@ -72,6 +72,7 @@ find_package(catkin REQUIRED COMPONENTS
    DEPENDENCIES
    std_msgs
    sensor_msgs
+   geometry_msgs
  )
 
 ################################################
@@ -105,7 +106,7 @@ find_package(catkin REQUIRED COMPONENTS
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
 #  INCLUDE_DIRS include
-  DEPENDS message_runtime sensor_msgs std_msgs cv_bridge
+  DEPENDS message_runtime sensor_msgs std_msgs geometry_msgs cv_bridge
 #  LIBRARIES obj_isolation
 #  CATKIN_DEPENDS other_catkin_pkg
 #  DEPENDS system_lib
